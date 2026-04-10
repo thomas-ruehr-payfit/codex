@@ -1,18 +1,11 @@
-"use client";
-
 interface Props {
-  title: string;
-  downloadName?: string;
-  contentHtml: string;
-  slug: string;
+  slug: string
+  title: string
+  downloadName?: string
+  contentHtml: string
 }
 
-export default function ExpandableBlock({
-  title,
-  downloadName,
-  contentHtml,
-  slug,
-}: Props) {
+export default function ExpandableBlock({ slug, title, downloadName, contentHtml }: Props) {
   return (
     <details
       id={slug}
@@ -26,9 +19,7 @@ export default function ExpandableBlock({
           >
             ▶
           </span>
-          <span className="font-medium text-sm text-gray-900 truncate">
-            {title}
-          </span>
+          <span className="font-medium text-sm text-gray-900 truncate">{title}</span>
         </div>
         {downloadName && (
           <a
@@ -46,5 +37,5 @@ export default function ExpandableBlock({
         dangerouslySetInnerHTML={{ __html: contentHtml }}
       />
     </details>
-  );
+  )
 }

@@ -1,57 +1,63 @@
-import fs from "fs";
-import path from "path";
-import matter from "gray-matter";
-import { unified } from "unified";
-import remarkParse from "remark-parse";
-import remarkGfm from "remark-gfm";
-import remarkRehype from "remark-rehype";
-import rehypeHighlight from "rehype-highlight";
-import rehypeStringify from "rehype-stringify";
+import { marked } from 'marked'
+import hljs from 'highlight.js'
 
 export interface Section {
-  slug: string;
-  title: string;
-  order: number;
-  type: "section" | "expandable";
-  downloadName?: string;
-  contentHtml: string;
+  slug: string
+  title: string
+  order: number
+  type: 'section' | 'expandable'
+  downloadName?: string
+  contentHtml: string
 }
 
-const sectionsDir = path.join(process.cwd(), "content", "sections");
+// Configure marked with highlight.js
+marked.setOptions({
+  // @ts-expect-error highlight option accepted at runtime
+  highlight: (code: string, lang: string) => {
+    if (lang && hljs.getLanguage(lang)) {
+      return hljs.highlight(code, { language: lang }).value
+    }
+    return hljs.highlightAuto(code).value
+  },
+})
 
-export async function getAllSections(): Promise<Section[]> {
-  const files = fs
-    .readdirSync(sectionsDir)
-    .filter((f) => f.endsWith(".md"))
-    .sort();
+function parseFrontmatter(raw: string): { data: Record<string, string>; content: string } {
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/)
+  if (!match) return { data: {}, content: raw }
 
-  const sections = await Promise.all(
-    files.map(async (filename) => {
-      const slug = filename.replace(/\.md$/, "");
-      const fullPath = path.join(sectionsDir, filename);
-      const fileContents = fs.readFileSync(fullPath, "utf8");
-      const { data, content } = matter(fileContents);
+  const data: Record<string, string> = {}
+  match[1].split('\n').forEach((line) => {
+    const colon = line.indexOf(':')
+    if (colon === -1) return
+    const key = line.slice(0, colon).trim()
+    const val = line.slice(colon + 1).trim().replace(/^["']|["']$/g, '')
+    if (key) data[key] = val
+  })
 
-      const processed = await unified()
-        .use(remarkParse)
-        .use(remarkGfm)
-        .use(remarkRehype)
-        .use(rehypeHighlight)
-        .use(rehypeStringify)
-        .process(content);
+  return { data, content: match[2] }
+}
 
-      return {
-        slug,
-        title: (data.title as string) || slug,
-        order: (data.order as number) ?? 99,
-        type: ((data.type as string) === "expandable"
-          ? "expandable"
-          : "section") as Section["type"],
-        downloadName: data.downloadName as string | undefined,
-        contentHtml: processed.toString(),
-      };
-    })
-  );
+const modules = import.meta.glob('../../content/sections/*.md', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>
 
-  return sections.sort((a, b) => a.order - b.order);
+export function getAllSections(): Section[] {
+  const sections: Section[] = Object.entries(modules).map(([path, raw]) => {
+    const filename = path.split('/').pop()!
+    const slug = filename.replace(/\.md$/, '')
+    const { data, content } = parseFrontmatter(raw)
+
+    return {
+      slug,
+      title: data.title || slug,
+      order: parseInt(data.order ?? '99', 10),
+      type: data.type === 'expandable' ? 'expandable' : 'section',
+      downloadName: data.downloadName,
+      contentHtml: marked(content) as string,
+    }
+  })
+
+  return sections.sort((a, b) => a.order - b.order)
 }
