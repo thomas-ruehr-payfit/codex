@@ -63,16 +63,42 @@ export default function App() {
         </header>
 
         <div className="space-y-16">
-          {sections.map((section) =>
-            section.type === 'expandable' ? (
-              <ExpandableBlock
-                key={section.slug}
-                slug={section.slug}
-                title={section.title}
-                downloadName={section.downloadName}
-                contentHtml={section.contentHtml}
-              />
-            ) : (
+          {sections.map((section) => {
+            if (section.type === 'expandable') {
+              return (
+                <ExpandableBlock
+                  key={section.slug}
+                  slug={section.slug}
+                  title={section.title}
+                  downloadName={section.downloadName}
+                  contentHtml={section.contentHtml}
+                />
+              )
+            }
+
+            if (section.type === 'group') {
+              return (
+                <section key={section.slug} id={section.slug} className="scroll-mt-8 space-y-3">
+                  {section.contentHtml && (
+                    <div
+                      className="prose prose-gray max-w-none mb-6"
+                      dangerouslySetInnerHTML={{ __html: section.contentHtml }}
+                    />
+                  )}
+                  {section.children?.map((child) => (
+                    <ExpandableBlock
+                      key={child.slug}
+                      slug={child.slug}
+                      title={child.title}
+                      downloadName={child.downloadName}
+                      contentHtml={child.contentHtml}
+                    />
+                  ))}
+                </section>
+              )
+            }
+
+            return (
               <section key={section.slug} id={section.slug} className="scroll-mt-8">
                 <div
                   className="prose prose-gray max-w-none"
@@ -80,7 +106,7 @@ export default function App() {
                 />
               </section>
             )
-          )}
+          })}
         </div>
       </main>
     </div>
